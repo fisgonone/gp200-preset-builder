@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-base:      #1E2530;
+  --bg-panel:     #252B33;
+  --bg-elevated:  #2D3540;
+  --bg-editor:    #161B22;
+  --border:       #2D3540;
+  --border-soft:  #3D4550;
+  --text:         #E5E7EB;
+  --text-muted:   #9CA3AF;
+  --text-dim:     #6B7280;
+  --accent:       #3B82F6;
+  --accent-hover: #2563EB;
+  --success:      #10B981;
+  --error:        #EF4444;
+  --warning:      #F59E0B;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg-base);
+  color: var(--text);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--border-soft); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4D5560; }
+
+/* CodeMirror overrides */
+.cm-editor {
+  height: 100%;
+  font-family: 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace !important;
+  font-size: 13px !important;
+}
+
+.cm-editor.cm-focused { outline: none !important; }
+
+.cm-scroller {
+  overflow: auto;
+}

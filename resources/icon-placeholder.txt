@@ -1,0 +1,5 @@
+Place your icon.ico here (256x256 recommended).
+You can generate one from a PNG with:
+  magick icon.png -resize 256x256 icon.ico
+Or use any online ICO converter.
+electron-builder will fall back to its default icon if icon.ico is missing.

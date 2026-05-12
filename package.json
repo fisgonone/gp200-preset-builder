@@ -1,0 +1,51 @@
+{
+  "name": "gp200-preset-builder",
+  "version": "1.0.0",
+  "description": "GP-200 Preset Builder — GUI wrapper for the Valeton GP-200 YAML→.prst compiler",
+  "main": "./out/main/index.js",
+  "homepage": ".",
+  "author": "GP-200 Preset Builder",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "npm run build && electron-builder",
+    "package:win": "npm run build && electron-builder --win",
+    "prepare-python": "node scripts/prepare-python.js",
+    "build:full": "node scripts/prepare-python.js && npm run build && electron-builder --win",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts,.tsx"
+  },
+  "dependencies": {
+    "@codemirror/lang-yaml": "^6.1.1",
+    "@codemirror/state": "^6.4.1",
+    "@codemirror/theme-one-dark": "^6.1.2",
+    "@codemirror/view": "^6.26.3",
+    "codemirror": "^6.0.1",
+    "electron-store": "^8.2.0",
+    "js-yaml": "^4.1.0",
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@electron-toolkit/tsconfig": "^1.0.1",
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/react": "^15.0.6",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.12.7",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.19",
+    "electron": "^30.0.1",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.1.0",
+    "jsdom": "^24.0.0",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11",
+    "vitest": "^1.5.2"
+  }
+}

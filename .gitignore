@@ -1,0 +1,7 @@
+node_modules/
+dist/
+out/
+resources/python/
+.cache/
+.DS_Store
+*.log

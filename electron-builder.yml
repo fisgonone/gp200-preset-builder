@@ -1,0 +1,38 @@
+appId: com.valeton.gp200builder
+productName: GP-200 Preset Builder
+copyright: Copyright © 2024
+
+directories:
+  output: dist
+  buildResources: resources
+
+files:
+  - out/**/*
+  - node_modules/**/*
+  - "!node_modules/*/{CHANGELOG.md,README.md,readme.md,changelog.md}"
+  - "!node_modules/.cache/**"
+  - "!node_modules/.bin/**"
+
+extraResources:
+  - from: resources/python
+    to: python
+    filter:
+      - "**/*"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: GP-200 Preset Builder
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+
+publish: null
