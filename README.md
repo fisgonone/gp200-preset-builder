@@ -22,7 +22,7 @@ Built with Electron 30, React 18, TypeScript, and Vite. No Python installation r
 
 ## Screenshots
 
-> *(Add screenshots here)*
+![GP-200 Preset Builder](docs/AuJbrkh.png)
 
 ---
 
