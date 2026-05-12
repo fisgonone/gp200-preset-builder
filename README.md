@@ -48,7 +48,7 @@ Windows 10/11 x64. No additional runtime required — Python is bundled.
 ### Development
 
 ```bat
-git clone https://github.com/YOUR_USERNAME/gp200-preset-builder.git
+git clone https://github.com/fisgonone/gp200-preset-builder.git
 cd gp200-preset-builder
 
 npm install
@@ -159,7 +159,7 @@ npx vitest run --config vitest.renderer.config.ts
 
 ## Related
 
-- [gp200-toolkit](https://github.com/YOUR_USERNAME/gp200-toolkit) — the Python compiler and YAML schema that this app wraps
+- [gp200-toolkit](https://github.com/fisgonone/gp200-toolkit) — the Python compiler and YAML schema that this app wraps
 
 ---
 
