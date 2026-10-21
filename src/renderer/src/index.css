@@ -2,21 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Studio-console palette: blue-grey enamel panels, cream silkscreen lettering,
+ * an amber VU backlight for the one primary action, and LED red/green for
+ * state. Module colours (the pedal enamels) live in types.ts.
+ */
 :root {
-  --bg-base:      #1E2530;
-  --bg-panel:     #252B33;
-  --bg-elevated:  #2D3540;
-  --bg-editor:    #161B22;
-  --border:       #2D3540;
-  --border-soft:  #3D4550;
-  --text:         #E5E7EB;
-  --text-muted:   #9CA3AF;
-  --text-dim:     #6B7280;
-  --accent:       #3B82F6;
-  --accent-hover: #2563EB;
-  --success:      #10B981;
-  --error:        #EF4444;
-  --warning:      #F59E0B;
+  --rack:        #1C232A;   /* behind everything; the rack rails */
+  --panel:       #26303A;   /* console face */
+  --panel-raised:#2E3944;   /* controls sitting on the face */
+  --well:        #161C22;   /* recessed areas: editor, lists */
+  --seam:        #3A4652;   /* 1px panel joins */
+  --silkscreen:  #ECE5D3;   /* primary text */
+  --silk-muted:  #A9B0B3;   /* secondary text */
+  --silk-faint:  #6F7A82;   /* hints, disabled */
+  --vu:          #F2A93B;   /* amber: compile, focus, active */
+  --vu-deep:     #C98417;
+  --led-red:     #F0564A;
+  --led-green:   #74C26A;
+  --cable:       #0E1216;
 }
 
 * {
@@ -29,28 +33,58 @@ html, body, #root {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background: var(--bg-base);
-  color: var(--text);
-  font-family: 'Inter', 'Segoe UI', sans-serif;
-  font-size: 14px;
+  background: var(--rack);
+  color: var(--silkscreen);
+  font-family: 'Barlow Semi Condensed', 'Segoe UI', sans-serif;
+  font-size: 15px;
+  line-height: 1.35;
   -webkit-font-smoothing: antialiased;
 }
 
-/* scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--bg-base); }
-::-webkit-scrollbar-thumb { background: var(--border-soft); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #4D5560; }
+/* Keyboard focus is always visible, in the amber of the console backlight. */
+:focus-visible {
+  outline: 2px solid var(--vu);
+  outline-offset: 2px;
+}
+button:focus:not(:focus-visible) { outline: none; }
 
-/* CodeMirror overrides */
-.cm-editor {
-  height: 100%;
-  font-family: 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace !important;
-  font-size: 13px !important;
+/* scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--seam); border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: #4C5966; background-clip: padding-box; }
+
+/* CodeMirror */
+.cm-editor { height: 100%; }
+.cm-editor.cm-focused { outline: none !important; }
+.cm-scroller { overflow: auto; font-family: 'IBM Plex Mono', 'Consolas', monospace !important; }
+.cm-tooltip-autocomplete { font-family: 'IBM Plex Mono', 'Consolas', monospace; }
+
+/* LED: a lit pedal's status light. */
+.led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3A2522;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6);
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+.led[data-on='true'] {
+  background: var(--led-red);
+  box-shadow: 0 0 6px 1px rgba(240, 86, 74, 0.75), inset 0 -1px 1px rgba(0, 0, 0, 0.25);
 }
 
-.cm-editor.cm-focused { outline: none !important; }
+/* The compile button's lamp flashes once when a file is written. */
+@keyframes lamp-flash {
+  0% { box-shadow: 0 0 0 0 rgba(242, 169, 59, 0.0); }
+  30% { box-shadow: 0 0 18px 4px rgba(242, 169, 59, 0.55); }
+  100% { box-shadow: 0 0 0 0 rgba(242, 169, 59, 0.0); }
+}
+.lamp-flash { animation: lamp-flash 900ms ease-out; }
 
-.cm-scroller {
-  overflow: auto;
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
 }

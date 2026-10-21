@@ -2,42 +2,57 @@ import React, { useEffect, useRef, useCallback } from 'react'
 import { EditorView, keymap, placeholder } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { yaml } from '@codemirror/lang-yaml'
-import { oneDark } from '@codemirror/theme-one-dark'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
-import { indentOnInput, syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
-import { closeBrackets } from '@codemirror/autocomplete'
+import { HighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/language'
+import { tags } from '@lezer/highlight'
+import { autocompletion, closeBrackets, completionKeymap } from '@codemirror/autocomplete'
+import type { Catalog } from '@shared/ipc'
+import { gp200Completions } from '../lib/completions'
 
 interface Props {
   value: string
   onChange: (value: string) => void
   onScrollTo?: (cb: (section: string) => void) => void
+  /** Effect catalog for autocompletion; null until loaded. */
+  catalog?: Catalog | null
 }
 
-const EDITOR_THEME = EditorView.theme({
-  '&': {
-    height: '100%',
-    background: '#161B22',
-    color: '#E5E7EB',
+// Console colours: cream lettering on a recessed well, keys in faded blue
+// silkscreen, comments dim, the cursor and selection in the amber backlight.
+const EDITOR_THEME = EditorView.theme(
+  {
+    '&': { height: '100%', background: '#161C22', color: '#ECE5D3' },
+    '.cm-content': { padding: '14px 0', caretColor: '#F2A93B', fontSize: '13.5px', lineHeight: '1.6' },
+    '.cm-line': { padding: '0 20px' },
+    '.cm-cursor, .cm-dropCursor': { borderLeftColor: '#F2A93B', borderLeftWidth: '2px' },
+    '.cm-selectionBackground': { background: '#2E3944 !important' },
+    '&.cm-focused .cm-selectionBackground': { background: 'rgba(242,169,59,0.22) !important' },
+    '.cm-activeLine': { background: 'rgba(255,255,255,0.025)' },
+    '.cm-gutters': { display: 'none' },
+    '.cm-placeholder': { color: '#6F7A82' },
+    '.cm-tooltip': { background: '#26303A', border: '1px solid #3A4652', color: '#ECE5D3', borderRadius: '6px' },
+    '.cm-tooltip-autocomplete > ul > li': { padding: '3px 10px !important' },
+    '.cm-tooltip-autocomplete > ul > li[aria-selected]': { background: 'rgba(242,169,59,0.25)', color: '#ECE5D3' },
+    '.cm-completionDetail': { color: '#A9B0B3', fontStyle: 'normal', marginLeft: '1.2em' },
+    '.cm-completionMatchedText': { textDecoration: 'none', color: '#F2A93B' },
   },
-  '.cm-content': {
-    padding: '12px 0',
-    caretColor: '#3B82F6',
-    fontFamily: "'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace",
-    fontSize: '13px',
-  },
-  '.cm-line': { padding: '0 16px' },
-  '.cm-cursor': { borderLeftColor: '#3B82F6' },
-  '.cm-selectionBackground': { background: '#2D3540 !important' },
-  '&.cm-focused .cm-selectionBackground': { background: '#3B82F650 !important' },
-  '.cm-activeLine': { background: '#1E2530' },
-  '.cm-gutters': { display: 'none' },
-  '.cm-placeholder': { color: '#6B7280' },
-})
+  { dark: true },
+)
 
-export function YamlEditor({ value, onChange, onScrollTo }: Props) {
+const HIGHLIGHT = HighlightStyle.define([
+  { tag: [tags.definition(tags.propertyName), tags.propertyName], color: '#8FB3C9' },
+  { tag: [tags.content, tags.string], color: '#ECE5D3' },
+  { tag: [tags.lineComment, tags.comment], color: '#6F7A82', fontStyle: 'italic' },
+  { tag: [tags.separator, tags.punctuation, tags.squareBracket, tags.brace], color: '#6F7A82' },
+  { tag: [tags.meta, tags.keyword, tags.labelName, tags.typeName], color: '#C9A66B' },
+])
+
+export function YamlEditor({ value, onChange, onScrollTo, catalog = null }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const valueRef = useRef(value)
+  const catalogRef = useRef<Catalog | null>(catalog)
+  catalogRef.current = catalog
 
   const handleChange = useCallback(
     (newValue: string) => {
@@ -59,13 +74,13 @@ export function YamlEditor({ value, onChange, onScrollTo }: Props) {
     const extensions = [
       history(),
       yaml(),
-      oneDark,
       EDITOR_THEME,
       indentOnInput(),
       closeBrackets(),
-      syntaxHighlighting(defaultHighlightStyle),
-      keymap.of([...defaultKeymap, ...historyKeymap]),
-      placeholder('# Paste or drop a .yaml file here…'),
+      syntaxHighlighting(HIGHLIGHT),
+      autocompletion({ override: [gp200Completions(() => catalogRef.current)], icons: false }),
+      keymap.of([...completionKeymap, ...defaultKeymap, ...historyKeymap]),
+      placeholder('Write a preset here, pick a template, or drop a .yaml or .prst file'),
       updateListener,
       EditorView.lineWrapping,
     ]
@@ -111,7 +126,7 @@ export function YamlEditor({ value, onChange, onScrollTo }: Props) {
     <div
       ref={containerRef}
       className="h-full w-full overflow-hidden"
-      style={{ background: '#161B22' }}
+      style={{ background: '#161C22' }}
     />
   )
 }

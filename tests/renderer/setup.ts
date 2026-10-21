@@ -3,7 +3,9 @@ import '@testing-library/jest-dom'
 // Mock window.api and window.store for renderer tests
 Object.defineProperty(window, 'api', {
   value: {
-    compileYaml: vi.fn().mockResolvedValue({ ok: true, outputPath: '/tmp/test.prst', sizeBytes: 1224, message: 'ok' }),
+    compileYaml: vi.fn().mockResolvedValue({ ok: true, outputPath: '/tmp/test.prst', sizeBytes: 1224, message: 'ok', warnings: [] }),
+    validateYaml: vi.fn().mockResolvedValue({ ok: true, errors: [], warnings: [] }),
+    getCatalog: vi.fn().mockResolvedValue(null),
     decompilePrst: vi.fn().mockResolvedValue({ ok: true, yamlText: '' }),
     listPresets: vi.fn().mockResolvedValue([]),
     openFolder: vi.fn().mockResolvedValue(undefined),

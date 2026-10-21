@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'path'
 import Store from 'electron-store'
 import fs from 'fs/promises'
-import { compileYaml, decompilePrst } from './compiler'
+import { compileYaml, decompilePrst, getCatalog, validateYaml } from './compiler'
 import { listPresets, openFolder, pickOutputDir, readYamlFile, getDefaultOutputDir, saveAs } from './files'
 
 interface StoreSchema {
@@ -29,13 +29,13 @@ function createWindow(): void {
     height: bounds.height,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#1E2530',
+    backgroundColor: '#1C232A',
     frame: false,
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: '#1E2530',
-      symbolColor: '#E5E7EB',
-      height: 32,
+      color: '#1C232A',
+      symbolColor: '#ECE5D3',
+      height: 38,
     },
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
@@ -74,6 +74,14 @@ app.on('window-all-closed', () => {
 
 ipcMain.handle('compile-yaml', async (_e, yamlText: string, outputDir: string) => {
   return compileYaml(yamlText, outputDir)
+})
+
+ipcMain.handle('validate-yaml', async (_e, yamlText: string) => {
+  return validateYaml(yamlText)
+})
+
+ipcMain.handle('get-catalog', async () => {
+  return getCatalog()
 })
 
 ipcMain.handle('decompile-prst', async (_e, prstPath: string) => {

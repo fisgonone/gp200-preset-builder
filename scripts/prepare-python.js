@@ -6,7 +6,8 @@
  * 2. Extracts it to resources/python/.
  * 3. Patches pythonXX._pth to include Lib\site-packages.
  * 4. Installs pip then PyYAML into resources/python/Lib/site-packages.
- * 5. Copies gp200-toolkit compiler files into resources/python/compiler/.
+ * 5. Copies gp200-toolkit (CLI scripts, gp200/ package, catalog) into resources/python/compiler/.
+ *    Override the toolkit location with GP200_TOOLKIT.
  */
 
 const https = require('https')
@@ -25,7 +26,7 @@ const GET_PIP_URL = 'https://bootstrap.pypa.io/get-pip.py'
 const ROOT = path.resolve(__dirname, '..')
 const RESOURCES_PYTHON = path.join(ROOT, 'resources', 'python')
 const COMPILER_DST = path.join(RESOURCES_PYTHON, 'compiler')
-const TOOLKIT_SRC = path.join(ROOT, '..', 'gp200-toolkit')
+const TOOLKIT_SRC = process.env.GP200_TOOLKIT || path.join(ROOT, '..', 'gp200-toolkit')
 const CACHE_DIR = path.join(ROOT, '.cache')
 const CACHED_ZIP = path.join(CACHE_DIR, PYTHON_ZIP_NAME)
 
@@ -110,16 +111,21 @@ async function installPyYaml(pythonExe, sitePackages) {
 async function copyToolkit() {
   console.log(`  Copying toolkit from ${TOOLKIT_SRC}`)
   await fsp.mkdir(COMPILER_DST, { recursive: true })
-  const files = ['prst_compile.py', 'prst_decompile.py', 'gp200_catalog.json', 'template.prst']
+  const files = ['prst_compile.py', 'prst_decompile.py', 'prst_info.py', 'gp200_catalog.json']
   for (const f of files) {
     const src = path.join(TOOLKIT_SRC, f)
     if (!existsSync(src)) {
-      console.warn(`  Warning: ${f} not found at ${src}`)
-      continue
+      throw new Error(`${f} not found at ${src} — is gp200-toolkit next to this repo?`)
     }
     await fsp.copyFile(src, path.join(COMPILER_DST, f))
     console.log(`    Copied ${f}`)
   }
+  // The gp200 Python package (skip caches)
+  await fsp.cp(path.join(TOOLKIT_SRC, 'gp200'), path.join(COMPILER_DST, 'gp200'), {
+    recursive: true,
+    filter: (src) => !src.includes('__pycache__'),
+  })
+  console.log('    Copied gp200/')
 }
 
 async function main() {

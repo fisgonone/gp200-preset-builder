@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { SlotState, StatusMessage, ParsedPreset } from './types'
-import type { ListedPreset } from '@shared/ipc'
+import type { Catalog, ListedPreset } from '@shared/ipc'
 import { SLOT_KEYS } from './types'
 
 interface AppState {
@@ -12,6 +12,9 @@ interface AppState {
   presets: ListedPreset[]
   status: StatusMessage
   isCompiling: boolean
+  /** Problems the toolkit found in the current YAML (empty when valid). */
+  diagnostics: { errors: string[]; warnings: string[] }
+  catalog: Catalog | null
 
   setYamlText: (text: string) => void
   setParsedPreset: (preset: ParsedPreset | null, error: string | null) => void
@@ -19,15 +22,21 @@ interface AppState {
   setPresets: (presets: ListedPreset[]) => void
   setStatus: (status: StatusMessage) => void
   setCompiling: (v: boolean) => void
+  setDiagnostics: (d: { errors: string[]; warnings: string[] }) => void
+  setCatalog: (c: Catalog | null) => void
 }
 
 function slotsFromPreset(preset: ParsedPreset | null): SlotState[] {
-  return SLOT_KEYS.map((key) => {
+  return (preset?.chain ?? SLOT_KEYS).map((key) => {
     const slotData = preset?.slots[key]
+    // Unlisted modules keep the pedal's init patch, where only VOL is on.
+    if (preset && !slotData && key === 'VOL') {
+      return { key, effectName: 'Volume', enabled: true }
+    }
     return {
       key,
       effectName: slotData?.effect ?? null,
-      enabled: !!slotData,
+      enabled: !!slotData && slotData.enabled,
     }
   })
 }
@@ -41,6 +50,8 @@ export const useStore = create<AppState>((set) => ({
   presets: [],
   status: { kind: 'idle', text: 'Ready' },
   isCompiling: false,
+  diagnostics: { errors: [], warnings: [] },
+  catalog: null,
 
   setYamlText: (text) => set({ yamlText: text }),
 
@@ -55,4 +66,6 @@ export const useStore = create<AppState>((set) => ({
   setPresets: (presets) => set({ presets }),
   setStatus: (status) => set({ status }),
   setCompiling: (v) => set({ isCompiling: v }),
+  setDiagnostics: (diagnostics) => set({ diagnostics }),
+  setCatalog: (catalog) => set({ catalog }),
 }))

@@ -1,12 +1,13 @@
 import React, { useEffect, useCallback, useRef } from 'react'
 import { useStore } from './store'
 import { parsePresetYaml, WELCOME_YAML } from './lib/yaml-parser'
-import { SlotChain } from './components/SlotChain'
-import { PedalRow } from './components/PedalRow'
+import { BLANK_YAML, TEMPLATES } from './lib/templates'
+import { ProblemsPanel } from './components/ProblemsPanel'
+import { Pedalboard } from './components/Pedalboard'
+import { PatchHeader } from './components/PatchHeader'
 import { YamlEditor } from './components/YamlEditor'
 import { DropZone } from './components/DropZone'
 import { PresetList } from './components/PresetList'
-import { CompileButton } from './components/CompileButton'
 import { OutputDirPicker } from './components/OutputDirPicker'
 import { StatusBar } from './components/StatusBar'
 import type { ListedPreset } from '@shared/ipc'
@@ -30,72 +31,6 @@ function useDebouncedCallback<T extends unknown[]>(fn: (...args: T) => void, del
   )
 }
 
-const TEMPLATES: { label: string; yaml: string }[] = [
-  {
-    label: 'Clean',
-    yaml: `name: Clean
-slots:
-  AMP:
-    effect: Clean Combo
-    Gain: 30
-    Volume: 70
-  CAB:
-    effect: 1x12 Blackface
-  RVB:
-    effect: Room
-    Decay: 35
-    Mix: 25
-`,
-  },
-  {
-    label: 'Crunch',
-    yaml: `name: Crunch
-slots:
-  DST:
-    effect: Tube Screamer
-    Drive: 50
-    Tone: 55
-    Level: 60
-  AMP:
-    effect: UK 800
-    Gain: 50
-    Volume: 65
-  CAB:
-    effect: 4x12 V30
-`,
-  },
-  {
-    label: 'Lead',
-    yaml: WELCOME_YAML,
-  },
-  {
-    label: 'Ambient Pad',
-    yaml: `name: Ambient Pad
-slots:
-  AMP:
-    effect: Fender Twin
-    Gain: 20
-    Volume: 60
-  CAB:
-    effect: 2x12 Blackface
-  MOD:
-    effect: Chorus
-    Rate: 40
-    Depth: 50
-    Mix: 40
-  DLY:
-    effect: Analog Delay
-    Time: 500
-    Feedback: 50
-    Mix: 35
-  RVB:
-    effect: Hall
-    Decay: 70
-    Mix: 45
-`,
-  },
-]
-
 export default function App() {
   const {
     yamlText, setYamlText,
@@ -105,6 +40,9 @@ export default function App() {
     setStatus,
     setCompiling,
     isCompiling,
+    setDiagnostics,
+    setCatalog,
+    catalog,
   } = useStore()
 
   const scrollToRef = useRef<((section: string) => void) | null>(null)
@@ -118,6 +56,8 @@ export default function App() {
       const initialYaml = savedYaml && savedYaml.trim() ? savedYaml : WELCOME_YAML
       setYamlText(initialYaml)
       syncParse(initialYaml)
+      validate(initialYaml)
+      window.api.getCatalog().then(setCatalog).catch(() => setCatalog(null))
 
       const dir = savedDir || (await window.api.getDefaultOutputDir())
       setOutputDir(dir)
@@ -143,13 +83,32 @@ export default function App() {
 
   const debouncedParse = useDebouncedCallback(syncParse, 300)
 
+  // ── Validate with the toolkit (debounced; stale answers are dropped) ─────
+  const validateSeq = useRef(0)
+  const validate = useCallback(
+    async (text: string) => {
+      const seq = ++validateSeq.current
+      try {
+        const result = await window.api.validateYaml(text)
+        if (seq === validateSeq.current) setDiagnostics({ errors: result.errors, warnings: result.warnings })
+      } catch {
+        // the toolkit is unavailable; compiling will report it
+      }
+    },
+    [setDiagnostics],
+  )
+  const debouncedValidate = useDebouncedCallback(validate, 700)
+
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const handleYamlChange = useCallback(
     (text: string) => {
       setYamlText(text)
-      window.store.set('lastYaml', text)
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      saveTimer.current = setTimeout(() => window.store.set('lastYaml', text), 500)
       debouncedParse(text)
+      debouncedValidate(text)
     },
-    [setYamlText, debouncedParse],
+    [setYamlText, debouncedParse, debouncedValidate],
   )
 
   // ── Refresh preset list ───────────────────────────────────────────────────
@@ -168,10 +127,16 @@ export default function App() {
     const result = await window.api.compileYaml(yamlText, outputDir)
     setCompiling(false)
     if (result.ok) {
-      setStatus({ kind: 'success', text: `✓ ${result.message}` })
+      const n = result.warnings.length
+      const suffix = n ? ` — ${n} warning${n === 1 ? '' : 's'}` : ''
+      setStatus({ kind: n ? 'warning' : 'success', text: `✓ ${result.message}${suffix}` })
+      setDiagnostics({ errors: [], warnings: result.warnings })
       await refreshPresets()
     } else {
-      setStatus({ kind: 'error', text: `Error: ${result.error}` })
+      const lines = result.error.split(/\r?\n/).map((l) => l.trim())
+      const problems = lines.filter((l) => l.startsWith('- ')).map((l) => l.slice(2))
+      setStatus({ kind: 'error', text: problems.length ? `Not compiled: ${lines[0]}` : `Error: ${result.error}` })
+      if (problems.length) setDiagnostics({ errors: problems, warnings: [] })
     }
   }
 
@@ -202,8 +167,7 @@ export default function App() {
   }
 
   function handleNewBlank() {
-    const blank = 'name: New Preset\n\nslots:\n  AMP:\n    effect: Clean Combo\n    Volume: 70\n'
-    handleYamlChange(blank)
+    handleYamlChange(BLANK_YAML)
   }
 
   async function handlePickDir() {
@@ -247,7 +211,7 @@ export default function App() {
     }
   }
 
-  // ── SlotChain click → scroll editor ──────────────────────────────────────
+  // ── Pedal or problem click → scroll editor ──────────────────────────────────────────────────────────────────────
   function handleSlotClick(slotKey: string) {
     scrollToRef.current?.(slotKey)
   }
@@ -256,134 +220,85 @@ export default function App() {
     scrollToRef.current = cb
   }
 
-  return (
-    <div className="flex flex-col h-screen" style={{ background: 'var(--bg-base)' }}>
-      {/* Title bar */}
-      <div
-        className="flex items-center justify-between px-4 select-none"
-        style={{
-          height: 40,
-          background: 'var(--bg-panel)',
-          borderBottom: '1px solid var(--border)',
-          WebkitAppRegion: 'drag',
-        } as React.CSSProperties}
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-            GP-200 Preset Builder
-          </span>
-          <span className="text-xs" style={{ color: 'var(--text-dim)' }}>v1.0.0</span>
-        </div>
+  const noDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties
 
-        {/* Templates menu */}
-        <div
-          className="flex items-center gap-1"
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-        >
+  return (
+    <div className="flex flex-col h-screen bg-rack">
+      {/* Title bar: draggable; the window buttons are drawn by Windows on the right. */}
+      <header
+        className="flex items-center gap-4 pl-4 select-none flex-shrink-0"
+        style={{ height: 38, paddingRight: 150, WebkitAppRegion: 'drag' } as React.CSSProperties}
+      >
+        <span className="font-semibold text-silk-muted" style={{ fontSize: 14 }}>GP-200 Preset Builder</span>
+        <div className="flex items-center gap-2" style={noDrag}>
+          <label className="sr-only" htmlFor="template">Start from a template</label>
           <select
+            id="template"
             onChange={(e) => {
               const t = TEMPLATES.find((t) => t.label === e.target.value)
               if (t) handleYamlChange(t.yaml)
               e.target.value = ''
             }}
             defaultValue=""
-            className="text-xs px-2 py-1 rounded"
-            style={{
-              background: 'var(--bg-elevated)',
-              color: 'var(--text-muted)',
-              border: '1px solid var(--border-soft)',
-              outline: 'none',
-            }}
+            className="text-sm rounded-md px-2 py-1 text-silk"
+            style={{ background: 'var(--panel-raised)', border: 'none' }}
           >
-            <option value="" disabled>New from template…</option>
+            <option value="" disabled>Start from a template…</option>
             {TEMPLATES.map((t) => (
               <option key={t.label} value={t.label}>{t.label}</option>
             ))}
           </select>
+          <button
+            type="button"
+            onClick={handleSaveAs}
+            className="text-sm rounded-md px-2.5 py-1 text-silk hover:brightness-125"
+            style={{ background: 'var(--panel-raised)' }}
+            title="Save the YAML text (Ctrl+S)"
+          >
+            Save YAML…
+          </button>
         </div>
-      </div>
+      </header>
 
-      {/* Main layout */}
-      <div className="flex flex-1 overflow-hidden" style={{ gap: 1, background: 'var(--border)' }}>
-
-        {/* Left panel */}
-        <div
-          className="flex flex-col flex-1 overflow-hidden gap-2 p-3"
-          style={{ background: 'var(--bg-panel)', minWidth: 0 }}
-        >
-          {/* Slot chain */}
-          <div
-            className="p-2 rounded-lg"
-            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-soft)' }}
-          >
-            <SlotChain onSlotClick={handleSlotClick} />
+      <main className="flex flex-1 min-h-0" style={{ borderTop: '1px solid var(--seam)' }}>
+        {/* Console: patch, pedalboard, editor */}
+        <div className="flex flex-col flex-1 min-w-0 bg-panel">
+          <PatchHeader onCompile={handleCompile} />
+          <div className="min-w-0" style={{ background: 'var(--rack)', borderTop: '1px solid var(--seam)', borderBottom: '1px solid var(--seam)' }}>
+            <Pedalboard onSelect={handleSlotClick} />
           </div>
 
-          {/* Pedal row */}
-          <div
-            className="p-2 rounded-lg"
-            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-soft)' }}
-          >
-            <PedalRow />
-          </div>
-
-          {/* YAML editor */}
           <DropZone onYamlDrop={handleYamlDrop} onPrstDrop={handlePrstDrop}>
-            <div
-              className="flex-1 rounded-lg overflow-hidden"
-              style={{
-                border: '1px solid var(--border-soft)',
-                height: 'calc(100vh - 330px)',
-                minHeight: 120,
-              }}
-            >
+            <div className="h-full overflow-hidden">
               <YamlEditor
                 value={yamlText}
                 onChange={handleYamlChange}
                 onScrollTo={registerScrollTo}
+                catalog={catalog}
               />
             </div>
           </DropZone>
 
-          {/* Bottom bar */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div
-              className="text-xs px-3 py-1.5 rounded-lg flex-1 text-center"
-              style={{
-                background: 'var(--bg-elevated)',
-                border: '1px dashed var(--border-soft)',
-                color: 'var(--text-dim)',
-              }}
-            >
-              Drop .yaml or .prst here
-            </div>
-            <CompileButton onClick={handleCompile} />
-          </div>
+          <ProblemsPanel onJump={handleSlotClick} />
         </div>
 
-        {/* Right panel */}
-        <div
-          className="flex flex-col gap-3 p-3 overflow-hidden"
-          style={{
-            width: 220,
-            background: 'var(--bg-panel)',
-            flexShrink: 0,
-          }}
+        {/* Library */}
+        <aside
+          className="flex flex-col flex-shrink-0 bg-panel w-[210px] lg:w-[250px]"
+          style={{ borderLeft: '1px solid var(--seam)' }}
+          aria-label="Preset library"
         >
-          <div
-            className="text-xs font-semibold"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Generated presets
+          <div className="flex items-baseline justify-between px-4 pt-4 pb-2">
+            <h2 className="font-semibold text-silk" style={{ fontSize: 16 }}>Compiled presets</h2>
+            <button type="button" onClick={() => refreshPresets()} className="text-sm text-silk-faint hover:text-silk" title="Read the folder again">
+              Refresh
+            </button>
           </div>
-
-          <PresetList onDoubleClick={handlePresetDoubleClick} />
-
+          <PresetList onOpen={handlePresetDoubleClick} />
           <OutputDirPicker onPick={handlePickDir} onOpenFolder={handleOpenFolder} />
-        </div>
-      </div>
+        </aside>
+      </main>
 
-      {/* Status bar */}
       <StatusBar />
     </div>
   )

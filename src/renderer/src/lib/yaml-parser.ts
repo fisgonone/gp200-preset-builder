@@ -1,7 +1,21 @@
 import yaml from 'js-yaml'
 import type { ParsedPreset, SlotKey } from '../types'
 import { SLOT_KEYS } from '../types'
+import { LEAD_YAML } from './templates'
 
+// Keys inside a slot that are not effect parameters.
+const SLOT_META_KEYS = new Set(['effect', 'enabled', 'params', 'hidden_params'])
+
+function isEnabled(value: unknown): boolean {
+  if (value === undefined || value === null) return true
+  if (typeof value === 'boolean') return value
+  return ['on', 'true', 'yes', '1'].includes(String(value).trim().toLowerCase())
+}
+
+/**
+ * Light, forgiving parse for the live diagram. Real validation (effect names,
+ * ranges) is done by the Python toolkit; see window.api.validateYaml.
+ */
 export function parsePresetYaml(text: string): { preset: ParsedPreset; error: null } | { preset: null; error: string } {
   if (!text.trim()) {
     return { preset: null, error: 'Empty document' }
@@ -29,63 +43,37 @@ export function parsePresetYaml(text: string): { preset: ParsedPreset; error: nu
 
   if (slotsRaw && typeof slotsRaw === 'object') {
     const slotsObj = slotsRaw as Record<string, unknown>
-    for (const key of SLOT_KEYS) {
-      const slotVal = slotsObj[key]
-      if (!slotVal || typeof slotVal !== 'object') continue
-      const slotObj = slotVal as Record<string, unknown>
-      const effect = typeof slotObj.effect === 'string' ? slotObj.effect : null
+    for (const [rawKey, slotVal] of Object.entries(slotsObj)) {
+      const key = rawKey.trim().toUpperCase() as SlotKey
+      if (!SLOT_KEYS.includes(key)) continue
+      const slotObj = (typeof slotVal === 'string' ? { effect: slotVal } : slotVal) as Record<string, unknown> | null
+      if (!slotObj || typeof slotObj !== 'object') continue
+      const effect = slotObj.effect != null ? String(slotObj.effect) : null
       if (!effect) continue
       const params: Record<string, number | string> = {}
       for (const [k, v] of Object.entries(slotObj)) {
-        if (k === 'effect') continue
-        if (typeof v === 'number' || typeof v === 'string') {
-          params[k] = v
-        }
+        if (SLOT_META_KEYS.has(k)) continue
+        if (typeof v === 'number' || typeof v === 'string') params[k] = v
+        else if (typeof v === 'boolean') params[k] = v ? 'ON' : 'OFF'
       }
-      slots[key as SlotKey] = { effect, params }
+      slots[key] = { effect, params, enabled: isEnabled(slotObj.enabled) }
     }
   }
 
-  return { preset: { name, author, slots }, error: null }
+  const chain = parseChain(obj.chain)
+  const tempo = typeof obj.tempo === 'number' ? obj.tempo : typeof obj.bpm === 'number' ? obj.bpm : undefined
+  const volume = typeof obj.volume === 'number' ? obj.volume : undefined
+  const slot = obj.slot != null ? String(obj.slot).toUpperCase() : undefined
+
+  return { preset: { name, author, slot, tempo, volume, chain, slots }, error: null }
 }
 
-export const WELCOME_YAML = `name: Lead Shimmer
-author: GP-200 Preset Builder
+/** The `chain:` list if it names every module once; otherwise the default order. */
+function parseChain(value: unknown): SlotKey[] {
+  if (!Array.isArray(value)) return [...SLOT_KEYS]
+  const keys = value.map((v) => String(v).trim().toUpperCase())
+  const valid = keys.length === SLOT_KEYS.length && SLOT_KEYS.every((k) => keys.includes(k))
+  return valid ? (keys as SlotKey[]) : [...SLOT_KEYS]
+}
 
-slots:
-  DST:
-    effect: Green OD
-    Drive: 60
-    Tone: 55
-    Level: 70
-
-  AMP:
-    effect: UK 800
-    Gain: 65
-    Bass: 50
-    Mid: 55
-    Treble: 60
-    Presence: 50
-    Volume: 70
-
-  CAB:
-    effect: 4x12 V30
-
-  EQ:
-    effect: Parametric EQ
-    Low Gain: 0
-    Mid Freq: 800
-    Mid Gain: 3
-    High Gain: 2
-
-  DLY:
-    effect: Digital Delay
-    Time: 380
-    Feedback: 30
-    Mix: 25
-
-  RVB:
-    effect: Hall
-    Decay: 40
-    Mix: 20
-`
+export const WELCOME_YAML = LEAD_YAML

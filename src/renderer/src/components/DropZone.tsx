@@ -51,7 +51,7 @@ export function DropZone({ onYamlDrop, onPrstDrop, children }: Props) {
 
   return (
     <div
-      className="relative h-full w-full"
+      className="relative flex-1 min-h-0 w-full"
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -60,14 +60,11 @@ export function DropZone({ onYamlDrop, onPrstDrop, children }: Props) {
       {children}
       {isDragging && (
         <div
-          className="absolute inset-0 z-50 flex items-center justify-center rounded-lg pointer-events-none"
-          style={{
-            background: 'rgba(59,130,246,0.08)',
-            border: '2px dashed #3B82F6',
-          }}
+          className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none"
+          style={{ background: 'rgba(22,28,34,0.82)', border: '2px dashed var(--vu)' }}
         >
-          <div className="text-accent text-sm font-medium bg-bg-base/90 px-4 py-2 rounded-lg">
-            Drop .yaml or .prst here
+          <div className="text-vu font-semibold" style={{ fontSize: 18 }}>
+            Drop to open this preset
           </div>
         </div>
       )}

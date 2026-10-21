@@ -1,32 +1,38 @@
 export const SLOT_KEYS = ['PRE', 'WAH', 'DST', 'AMP', 'NR', 'CAB', 'EQ', 'MOD', 'DLY', 'RVB', 'VOL'] as const
 export type SlotKey = (typeof SLOT_KEYS)[number]
 
-export const SLOT_COLORS: Record<SlotKey, string> = {
-  PRE: 'bg-blue-500',
-  WAH: 'bg-violet-500',
-  DST: 'bg-amber-500',
-  AMP: 'bg-red-500',
-  NR:  'bg-emerald-500',
-  CAB: 'bg-cyan-500',
-  EQ:  'bg-teal-500',
-  MOD: 'bg-purple-500',
-  DLY: 'bg-pink-500',
-  RVB: 'bg-orange-500',
-  VOL: 'bg-indigo-500',
+/** Plain-language name for each module, shown under its code. */
+export const SLOT_TITLES: Record<SlotKey, string> = {
+  PRE: 'Pre effects',
+  WAH: 'Wah',
+  DST: 'Drive',
+  AMP: 'Amp',
+  NR: 'Noise gate',
+  CAB: 'Cabinet',
+  EQ: 'EQ',
+  MOD: 'Modulation',
+  DLY: 'Delay',
+  RVB: 'Reverb',
+  VOL: 'Volume',
 }
 
-export const SLOT_HEX: Record<SlotKey, string> = {
-  PRE: '#3B82F6',
-  WAH: '#8B5CF6',
-  DST: '#F59E0B',
-  AMP: '#EF4444',
-  NR:  '#10B981',
-  CAB: '#06B6D4',
-  EQ:  '#14B8A6',
-  MOD: '#A855F7',
-  DLY: '#EC4899',
-  RVB: '#F97316',
-  VOL: '#6366F1',
+/**
+ * Pedal enamel for each module, picked from the stompboxes each one stands in
+ * for: compressor blue, drive orange, tweed amp, speaker-cloth brown, chorus
+ * teal, echo green… `ink` is the lettering colour that reads on that enamel.
+ */
+export const SLOT_ENAMEL: Record<SlotKey, { paint: string; ink: string }> = {
+  PRE: { paint: '#4F7CAC', ink: '#F4EFE2' },
+  WAH: { paint: '#6B5B95', ink: '#F4EFE2' },
+  DST: { paint: '#E07B39', ink: '#2A1A10' },
+  AMP: { paint: '#C9A66B', ink: '#2B2114' },
+  NR: { paint: '#7E8C7A', ink: '#1B2119' },
+  CAB: { paint: '#8B5E3C', ink: '#F4EFE2' },
+  EQ: { paint: '#AEB5BB', ink: '#1E2328' },
+  MOD: { paint: '#3FA7A3', ink: '#0F2524' },
+  DLY: { paint: '#5E9E4E', ink: '#13230F' },
+  RVB: { paint: '#C2566A', ink: '#F7EDEE' },
+  VOL: { paint: '#474B53', ink: '#ECE5D3' },
 }
 
 export interface SlotState {
@@ -38,7 +44,12 @@ export interface SlotState {
 export interface ParsedPreset {
   name: string
   author?: string
-  slots: Partial<Record<SlotKey, { effect: string; params: Record<string, number | string> }>>
+  slot?: string
+  tempo?: number
+  volume?: number
+  /** Playing order; the default chain when the YAML has none. */
+  chain: SlotKey[]
+  slots: Partial<Record<SlotKey, { effect: string; params: Record<string, number | string>; enabled: boolean }>>
 }
 
 export type StatusKind = 'idle' | 'compiling' | 'success' | 'error' | 'warning'

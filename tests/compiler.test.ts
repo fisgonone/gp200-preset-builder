@@ -4,17 +4,17 @@ import fs from 'fs/promises'
 import path from 'path'
 import os from 'os'
 
-const TOOLKIT_DIR = path.resolve(__dirname, '..', '..', 'gp200-toolkit')
+const TOOLKIT_DIR = process.env.GP200_TOOLKIT ?? path.resolve(__dirname, '..', '..', 'gp200-toolkit')
 const COMPILER = path.join(TOOLKIT_DIR, 'prst_compile.py')
 const PYTHON = process.platform === 'win32' ? 'python' : 'python3'
 
 const VALID_YAML = `name: Test Preset
 slots:
   AMP:
-    effect: Clean Combo
+    effect: Dark Twin
     Volume: 70
   CAB:
-    effect: 1x12 Blackface
+    effect: auto
 `
 
 const INVALID_YAML = `name: Bad Preset
@@ -64,6 +64,16 @@ describe('compiler bridge', () => {
 
     const { code, stderr } = await spawnCompile(INVALID_YAML, outPath)
     expect(code).not.toBe(0)
-    expect(stderr.trim().length).toBeGreaterThan(0)
+    expect(stderr).toContain('slots.AMP')
   }, 30_000)
+
+  it('compiles every template the app offers', async () => {
+    const { TEMPLATES, BLANK_YAML } = await import('../src/renderer/src/lib/templates')
+    for (const t of [...TEMPLATES, { label: 'Blank', yaml: BLANK_YAML }]) {
+      const outPath = path.join(os.tmpdir(), `gp200-tpl-${Date.now()}.prst`)
+      tmpFiles.push(outPath)
+      const { code, stderr } = await spawnCompile(t.yaml, outPath)
+      expect({ template: t.label, code, stderr }).toEqual({ template: t.label, code: 0, stderr: '' })
+    }
+  }, 60_000)
 })

@@ -5,6 +5,12 @@ const api: API = {
   compileYaml: (yamlText, outputDir) =>
     ipcRenderer.invoke('compile-yaml', yamlText, outputDir),
 
+  validateYaml: (yamlText) =>
+    ipcRenderer.invoke('validate-yaml', yamlText),
+
+  getCatalog: () =>
+    ipcRenderer.invoke('get-catalog'),
+
   decompilePrst: (prstPath) =>
     ipcRenderer.invoke('decompile-prst', prstPath),
 

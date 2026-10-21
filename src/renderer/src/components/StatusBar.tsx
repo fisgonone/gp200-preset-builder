@@ -1,32 +1,37 @@
 import React from 'react'
 import { useStore } from '../store'
 
+const LED: Record<string, string> = {
+  idle: '#4C5862',
+  compiling: 'var(--vu)',
+  success: 'var(--led-green)',
+  error: 'var(--led-red)',
+  warning: 'var(--vu)',
+}
+
 export function StatusBar() {
   const status = useStore((s) => s.status)
-
-  const colorMap = {
-    idle: 'text-text-muted',
-    compiling: 'text-warning',
-    success: 'text-success',
-    error: 'text-error',
-    warning: 'text-warning',
-  }
-
-  const dotMap = {
-    idle: 'bg-text-dim',
-    compiling: 'bg-warning animate-pulse',
-    success: 'bg-success',
-    error: 'bg-error',
-    warning: 'bg-warning',
-  }
+  const lit = status.kind !== 'idle'
 
   return (
     <div
-      className="flex items-center gap-2 px-4 py-1.5 text-xs border-t"
-      style={{ borderColor: 'var(--border-soft)', background: 'var(--bg-panel)' }}
+      className="flex items-center gap-2.5 px-4 text-sm flex-shrink-0"
+      style={{ height: 28, background: 'var(--rack)', borderTop: '1px solid var(--seam)' }}
+      role="status"
     >
-      <span className={`inline-block w-2 h-2 rounded-full ${dotMap[status.kind]}`} />
-      <span className={colorMap[status.kind]}>{status.text}</span>
+      <span
+        aria-hidden
+        className={status.kind === 'compiling' ? 'animate-pulse' : ''}
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: '50%',
+          background: LED[status.kind],
+          boxShadow: lit ? `0 0 6px ${LED[status.kind]}` : 'none',
+        }}
+      />
+      <span className={`truncate ${status.kind === 'error' ? 'text-led-red' : 'text-silk-muted'}`}>{status.text}</span>
+      <span className="ml-auto text-silk-faint truncate">Drop a .yaml or .prst file on the editor to open it</span>
     </div>
   )
 }
